@@ -22,26 +22,37 @@ class Product extends Model
         'note',
     ];
 
-    public function images()
+    // Product.php
+
+    public function langs()
     {
-        return $this->hasMany(ProductImage::class);
+        return $this->hasMany(ProductLang::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(ProductCategory::class, 'category_id');
     }
 
     public function brand()
     {
         return $this->belongsTo(Brand::class);
     }
-    public function category()
+
+    public function goal()
     {
-        return $this->belongsTo(ProductCategory::class,'category_id');
+        return $this->belongsTo(Goal::class);
     }
-     public function tastes()
-     {
-        return $this->belongsToMany(Taste::class);
-     }
-     public function langs()
-     {
-         return $this->hasMany(ProductLang::class);
-     }
+
+    public function tag()
+    {
+        return $this->belongsTo(Tag::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class);
+    }
+
 
 }

@@ -5,6 +5,10 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ApiPublicController;
 
 Route::middleware('auth:sanctum')->group(function (){
+    //languages
+    Route::get('languages', [ApiPublicController::class, 'languages']);
+    //change lang
+    Route::post('change/lang', [ApiPublicController::class, 'ChageLang']);
     //profile
     Route::get('user/profile', [ApiPublicController::class, 'UserProfile']);
 

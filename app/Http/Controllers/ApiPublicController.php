@@ -34,6 +34,7 @@ use App\Models\VideoCategoryLang;
 
 class ApiPublicController extends Controller
 {
+
   /*   protected $firebaseService;
     public function __construct(FirebaseService $firebaseService)
     {
@@ -49,6 +50,31 @@ class ApiPublicController extends Controller
 
         return response()->json($response);
     } */
+    public function languages()
+    {
+        $lang=Language::all();
+        return response()->json([
+            'status' => 'success',
+            'language' => $lang,
+        ]);
+    }
+    public function ChageLang(Request $request)
+    {
+        $request->validate([
+            'language_id' => 'required|exists:languages,id',
+        ]);
+
+        $user = Auth::user();
+        $user->update([
+            'language_id' => $request->language_id
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Language changed successfully',
+        ]);
+    }
+
 
     public function UserProfile()
     {
@@ -172,6 +198,8 @@ class ApiPublicController extends Controller
     }
     public function OneProduct($id)
     {
+        $langId = Auth::user()->language_id;
+
         $product = Product::join('product_langs', 'products.id', '=', 'product_langs.product_id')
             ->join('product_categories', 'products.category_id', '=', 'product_categories.id')
             ->join('product_category_langs', 'product_categories.id', '=', 'product_category_langs.product_category_id')
@@ -181,17 +209,31 @@ class ApiPublicController extends Controller
             ->join('goal_langs', 'goals.id', '=', 'goal_langs.goal_id')
             ->join('tags', 'products.tag_id', '=', 'tags.id')
             ->join('tag_langs', 'tags.id', '=', 'tag_langs.tag_id')
-            ->join('product_images','product_images.product_id','=','products.id')
-            ->select('product_langs.name', 'product_langs.description', 'product_langs.image','product_categories.id as category_id','product_category_langs.name as category_name','brands.id as brand_id','brand_langs.name as brand_name','goals.id as goal_id','goal_langs.name as goal_name','tags.id as tag_id','tag_langs.name as tag_name')
-            ->where('product_langs.language_id', Auth::user()->language_id)
+            ->leftJoin('product_images', 'product_images.product_id', '=', 'products.id')
+            ->select(
+                'product_langs.name', 'product_langs.description', 'product_langs.image',
+                'product_categories.id as category_id', 'product_category_langs.name as category_name',
+                'brands.id as brand_id', 'brand_langs.name as brand_name',
+                'goals.id as goal_id', 'goal_langs.name as goal_name',
+                'tags.id as tag_id', 'tag_langs.name as tag_name'
+            )
+            ->where('product_langs.language_id', $langId)
+            ->where('product_category_langs.language_id', $langId)
+            ->where('brand_langs.language_id', $langId)
+            ->where('goal_langs.language_id', $langId)
+            ->where('tag_langs.language_id', $langId)
             ->where('products.status', 1)
-            ->where('products.id',$id)
-            ->get();
+            ->where('products.id', $id)
+            ->first(); // only one product
+
+        if (!$product) {
+            return response()->json(['status' => 'error', 'message' => 'Product not found'], 404);
+        }
+
         return response()->json([
             'status' => 'success',
             'data' => $product,
         ]);
     }
-
 
 }

@@ -3,7 +3,10 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return  redirect('https://britishbody.uk/');
+});
+Route::get('/contact', function () {
+    return  redirect('https://britishbody.uk/contact');
 });
 
 Auth::routes();

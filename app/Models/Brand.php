@@ -8,6 +8,6 @@ class Brand extends Model
 {
     public function langs()
     {
-        return $this->hasMany(BrandLang::class); // or respective Lang model
+        return $this->hasMany(BrandLang::class);
     }
 }
