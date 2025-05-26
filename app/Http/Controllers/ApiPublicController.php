@@ -236,4 +236,37 @@ class ApiPublicController extends Controller
         ]);
     }
 
+    public function allProducts(Request $request)
+    {
+        $languageId = Auth::user()->language_id;
+
+        $products = Product::with([
+                'langs' => fn($q) => $q->where('language_id', $languageId),
+                'category.langs' => fn($q) => $q->where('language_id', $languageId),
+                'brand.langs' => fn($q) => $q->where('language_id', $languageId),
+                'goal.langs' => fn($q) => $q->where('language_id', $languageId),
+                'tag.langs' => fn($q) => $q->where('language_id', $languageId),
+                'images',
+            ])
+            ->where('status', 1)
+            ->when($request->category_id, function ($query) use ($request) {
+                $query->where('category_id', $request->category_id);
+            })
+            ->when($request->name, function ($query) use ($request, $languageId) {
+                $query->whereHas('langs', function ($q) use ($request, $languageId) {
+                    $q->where('language_id', $languageId)
+                      ->where('name', 'like', '%' . $request->name . '%');
+                });
+            })
+            ->orderBy('id', 'desc') // newest first
+            ->paginate(12); // change to get() if you want all without pagination
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $products,
+        ]);
+    }
+
+
+
 }

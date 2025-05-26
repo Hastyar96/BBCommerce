@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "59e71e59898cfcad264115ee75fd46fb",
+    "content-hash": "3ef908ba99a6275f74566a2987d7ffd2",
     "packages": [
         {
             "name": "beste/clock",
@@ -4715,6 +4715,77 @@
                 }
             ],
             "time": "2024-11-27T12:13:42+00:00"
+        },
+        {
+            "name": "rstacode/otpiq",
+            "version": "v1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Rstacode/otpiq.git",
+                "reference": "356ab1614a6995c49141869c9e7b3a739ae42568"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Rstacode/otpiq/zipball/356ab1614a6995c49141869c9e7b3a739ae42568",
+                "reference": "356ab1614a6995c49141869c9e7b3a739ae42568",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.0",
+                "illuminate/support": "^10.0|^11.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.5",
+                "phpunit/phpunit": "^10.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Otpiq": "Rstacode\\Otpiq\\Facades\\Otpiq"
+                    },
+                    "providers": [
+                        "Rstacode\\Otpiq\\OtpiqServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "config/otpiq.php"
+                ],
+                "psr-4": {
+                    "Rstacode\\Otpiq\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Rstacode",
+                    "email": "rstacode@gmail.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A Laravel package for handling OTP verification, The most reliable SMS & WhatsApp & Telegram verification platform for your business in Iraq",
+            "homepage": "https://github.com/rstacode/otpiq",
+            "keywords": [
+                "iraq",
+                "kurdistan",
+                "laravel",
+                "otp",
+                "sms",
+                "telegram",
+                "verification",
+                "whatsapp"
+            ],
+            "support": {
+                "issues": "https://github.com/rstacode/otpiq/issues",
+                "source": "https://github.com/rstacode/otpiq"
+            },
+            "time": "2025-01-31T21:11:29+00:00"
         },
         {
             "name": "symfony/cache",

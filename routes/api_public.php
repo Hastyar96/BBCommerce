@@ -36,6 +36,9 @@ Route::middleware('auth:sanctum')->group(function (){
     //videos
     Route::get('videos', [ApiPublicController::class, 'Videos']);
 
+    //all product
+    Route::get('products', [ApiPublicController::class, 'allProducts']);
+
     //oneproduct
     Route::get('one/product/{id}',[ApiPublicController::class ,'OneProduct']);
 
