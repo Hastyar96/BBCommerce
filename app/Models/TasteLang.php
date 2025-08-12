@@ -9,7 +9,7 @@ class TasteLang extends Model
     protected $fillable =
     [
         'name',
-        'tast_id',
+        'taste_id',
         'language_id',
     ];
 

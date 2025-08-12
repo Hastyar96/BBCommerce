@@ -16,7 +16,7 @@ return new class extends Migration
 
             // Transaction details
             $table->string('note')->nullable();
-            $table->enum('transaction_type', ['sale', 'purchase', 'return', 'order']);
+            $table->enum('transaction_type', ['sale', 'purchase', 'return', 'order','card','reject']);
             $table->unsignedBigInteger('office_id')->nullable();
             $table->string('transaction_number')->nullable();
 

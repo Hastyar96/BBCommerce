@@ -7,11 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'image',
         'brand_id',
         'category_id',
-        'goal_id',
-        'tag_id',
         'size_type', //1 for size forward 2 for size json / 3 no size
         'size',  //json
         'status',
@@ -20,6 +17,9 @@ class Product extends Model
         'for_buy',
         'buy_price',
         'note',
+        'best_sale',
+        'serving_g',
+        'is_actibe',
     ];
 
     // Product.php
@@ -27,6 +27,10 @@ class Product extends Model
     public function langs()
     {
         return $this->hasMany(ProductLang::class);
+    }
+    public function lang($langId)
+    {
+        return $this->langs()->where('language_id', $langId)->first();
     }
 
     public function category()
@@ -39,20 +43,38 @@ class Product extends Model
         return $this->belongsTo(Brand::class);
     }
 
-    public function goal()
+    public function tags()
     {
-        return $this->belongsTo(Goal::class);
+        return $this->belongsToMany(Tag::class, 'product_tags');
     }
 
-    public function tag()
+
+    public function goals()
     {
-        return $this->belongsTo(Tag::class);
+        return $this->belongsToMany(Goal::class, 'goal_products', 'product_id', 'goal_id');
     }
+    public function tastes()
+    {
+        return $this->belongsToMany(Taste::class, 'product_tastes');
+    }
+
 
     public function images()
     {
         return $this->hasMany(ProductImage::class);
     }
 
+    public function price()
+    {
+         return $this->hasMany(ProductPrice::class);
+    }
+    public function priceIn($currencyId)
+    {
+        return $this->price()->where('currency_id', $currencyId)->first()?->price ?? 0;
+    }
+    public function activePrice()
+    {
+        return $this->hasOne(ProductPrice::class)->where('is_active', 1);
+    }
 
 }

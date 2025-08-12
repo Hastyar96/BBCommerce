@@ -1,0 +1,128 @@
+
+/*
+|--------------------------------------------------------------------------
+| 1. RTL Fixes
+|--------------------------------------------------------------------------
+*/
+[dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+}
+
+/* Header & Logo */
+[dir="rtl"] .logo img {
+    margin-right: 65px;
+    margin-left: 40px;
+}
+
+/* Search Bar */
+[dir="rtl"] .search-icon {
+    right: auto;
+    left: 10px;
+}
+
+[dir="rtl"] .search-bar input {
+    border-radius: 0 30px 30px 0;
+    padding-left: 40px;
+    padding-right: 20px;
+}
+
+[dir="rtl"] .search-bar button {
+    border-radius: 10px 0 0 10px;
+}
+
+/* Dropdowns */
+[dir="rtl"] .dropdown-menu {
+    left: auto;
+    right: 0;
+}
+
+/* Shopping Cart */
+[dir="rtl"] .basket-container {
+    right: auto;
+    left: 0;
+}
+
+[dir="rtl"] .cart-count {
+    right: auto;
+    left: -8px;
+}
+
+/* Product Cards */
+[dir="rtl"] .product-image {
+    margin-left: 0;
+    margin-right: 25px;
+}
+
+/* Icons */
+[dir="rtl"] .heart-icon,
+[dir="rtl"] .favorite-icon {
+    right: auto;
+    left: 10px;
+}
+
+/* Slider Arrows */
+[dir="rtl"] .left-arrow {
+    left: auto;
+    right: 0;
+}
+
+[dir="rtl"] .right-arrow {
+    right: auto;
+    left: 0;
+}
+
+/* Footer */
+[dir="rtl"] .footer-column h3::after {
+    left: auto;
+    right: 0;
+}
+
+/* Language Switcher */
+[dir="rtl"] .language-switcher {
+    flex-direction: row-reverse;
+}
+
+/* RTL Fixes for search-filter-section */
+[dir="rtl"] .search-bar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .search-bar input {
+    border-radius: 30px 0 0 30px;
+    padding-right: 40px;
+    padding-left: 20px;
+}
+
+[dir="rtl"] .search-bar button {
+    border-radius: 0 12px 12px 0;
+}
+
+/* RTL Fixes for filters */
+[dir="rtl"] .filters {
+    flex-direction: row-reverse;
+}
+
+/*
+|--------------------------------------------------------------------------
+| 2. Global Styles
+|--------------------------------------------------------------------------
+*/
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+
+
+
+

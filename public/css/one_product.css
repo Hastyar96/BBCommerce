@@ -1,0 +1,158 @@
+/*
+|--------------------------------------------------------------------------
+| 16. Product Detail Page
+|--------------------------------------------------------------------------
+*/
+.product-container {
+    background: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+    margin-top: 40px;
+    position: relative;
+    overflow: visible;
+}
+
+.product-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+    margin-bottom: 30px;
+    margin-top: 20px;
+}
+
+.product-image img {
+    width: 200px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+
+
+}
+
+.product-details {
+    flex: 1;
+    position: relative;
+}
+
+.product-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.price-container {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.price-old {
+    text-decoration: line-through;
+    color: #aaa;
+    font-size: 1.4rem;
+    margin: 0;
+    margin-left: 260px;
+}
+
+.price-new {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #222;
+    margin: 0;
+    margin-left: 160px;
+}
+
+.discount-badge {
+    background: #ff6b6b;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    margin-top: 130px;
+    font-size: 15px;
+}
+
+.heart-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 28px;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    background: white;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.heart-icon:hover {
+    color: #ff6b6b;
+    transform: scale(1.1);
+}
+
+.heart-icon.active {
+    color: #ff6b6b;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.btn-cart {
+    background: #e74c3c;
+    color: white;
+    flex: 1;
+    font-weight: 600;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+}
+
+.btn-cart:hover {
+    background: #e74c3c;
+}
+
+.nutri-table {
+    background: #f6f6f6;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.nutri-table th,
+.nutri-table td {
+    text-align: center;
+    padding: 10px;
+    width: 500px;
+}
+
+.nutri-table thead {
+    background: #e74c3c;
+    color: white;
+}
+
+.benefit-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.benefit-icon {
+    font-size: 24px;
+    color: #e74c3c;
+}

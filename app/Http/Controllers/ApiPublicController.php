@@ -6,8 +6,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Services\FirebaseService;
+use Illuminate\Support\Facades\Session;
 
+use App\Http\Resources\ProductResource;
+use App\Http\Resources\SingleProductResource;
 
+use App\Services\StockService;
+use App\Services\StockServiceItem;
 
 use App\Models\User;
 use App\Models\Slider;
@@ -31,9 +36,61 @@ use App\Models\Video;
 use App\Models\VideoLang;
 use App\Models\VideoCategory;
 use App\Models\VideoCategoryLang;
+use App\Models\Transaction;
+use App\Models\TransactionItem;
+use App\Models\City;
+use App\Models\Subcity;
+use App\Models\Office;
+use App\Models\OfficeSubcity;
+use App\Models\CountryCode;
+use App\Models\PaymentMethod;
 
 class ApiPublicController extends Controller
 {
+
+   public function __construct(Request $request)
+    {
+        if ($request->expectsJson() || $request->is('api/*')) {
+            $this->middleware('auth:sanctum');
+        } else {
+            $this->middleware(function ($request, $next) {
+                $guestUserId = session('guest_user_id');
+                $guestUser = $guestUserId ? User::find($guestUserId) : null;
+
+                if (!auth()->check() || !$guestUser) {
+                    // Either not logged in or guest user was deleted
+                    $sessionId = session()->getId();
+
+                    $existingGuest = User::where('is_guest', 1)
+                        ->where('session', $sessionId)
+                        ->first();
+
+                    if ($existingGuest) {
+                        session(['guest_user_id' => $existingGuest->id]);
+                        Auth::loginUsingId($existingGuest->id);
+                    } else {
+                        $guest = User::create([
+                            'first_name' => 'Guest',
+                            'last_name' => 'User',
+                            'email' => 'guest_' . uniqid() . '@british.com',
+                            'phone' => '000' . rand(1000000, 9999999),
+                            'password' => bcrypt($sessionId),
+                            'is_guest' => 1,
+                            'session' => $sessionId,
+                            'language_id' => 1,
+                            'is_admin' => 0,
+                        ]);
+
+                        session(['guest_user_id' => $guest->id]);
+                        Auth::loginUsingId($guest->id);
+                    }
+                }
+
+                return $next($request);
+            });
+
+        }
+    }
 
   /*   protected $firebaseService;
     public function __construct(FirebaseService $firebaseService)
@@ -50,6 +107,42 @@ class ApiPublicController extends Controller
 
         return response()->json($response);
     } */
+    public function smartReturn(Request $request, $view, $data)
+    {
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json($data);
+        }
+
+        return view($view, $data);
+    }
+
+
+   public function updateTransactionPrices($transaction_id)
+    {
+        $transaction = Transaction::with('items')->find($transaction_id);
+
+        if (!$transaction) {
+            return response()->json(['status' => 'error', 'message' => 'Transaction not found'], 404);
+        }
+
+        $newTotal = 0;
+
+        foreach ($transaction->items as $item) {
+            $item->total_price = ($item->price_per_unit * $item->quantity) - $item->discount;
+            $item->save();
+
+            $newTotal += $item->total_price;
+        }
+
+        $transaction->total_price = $newTotal;
+        $transaction->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'All item prices and transaction total updated.',
+            'total_transaction_price' => $transaction->total_price,
+        ]);
+    }
     public function languages()
     {
         $lang=Language::all();
@@ -78,14 +171,81 @@ class ApiPublicController extends Controller
 
     public function UserProfile()
     {
-        $user = User::find(Auth::user()->id);
-        $lang=Language::where('id',$user->language_id)->first();
+        $user = User::with(['subcity.city', 'language'])->find(Auth::id());
+
+
         return response()->json([
             'status' => 'success',
             'data' => $user,
-            'language' => $lang,
         ]);
     }
+
+        public function EditUser(Request $request)
+        {
+            $user = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'first_name' => 'nullable|string|max:255',
+                'last_name' => 'nullable|string|max:255',
+                'phone' => 'nullable|string|max:20|unique:users,phone,' . $user->id,
+                //'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
+                'language_id' => 'nullable|exists:languages,id',
+                'password' => 'nullable|string|min:8|confirmed',
+                'subcity_id' => 'nullable|exists:subcities,id',
+                'image_profile' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'image_cover' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'subcity_id' => 'nullable',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user->update($request->only([
+                'first_name',
+                'last_name',
+                'phone',
+                'email',
+                'language_id',
+                'subcity_id',
+            ]));
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'User updated successfully',
+                'user' => $user,
+            ]);
+        }
+
+    public function EditUserSubCity(Request $request)
+    {
+
+        $user = Auth::user();
+
+        $validator = Validator::make($request->all(), [
+            'subcity_id' => 'required|exists:subcities,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user->subcity_id = $request->subcity_id;
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'User subcity updated successfully',
+            'user' => $user,
+        ]);
+    }
+
     public function MainSlider()
     {
         $sliders = Slider::join('slider_langs', 'sliders.id', '=', 'slider_langs.slider_id')
@@ -101,7 +261,7 @@ class ApiPublicController extends Controller
     public function ProductsCategory()
     {
        $category=ProductCategory::join('product_category_langs', 'product_categories.id', '=', 'product_category_langs.product_category_id')
-            ->select('product_category_langs.name','product_categories.image', 'product_category_langs.description')
+            ->select('product_categories.id','product_category_langs.name','product_categories.image', 'product_category_langs.description')
             ->where('product_category_langs.language_id', Auth::user()->language_id)
             ->get();
         return response()->json([
@@ -115,16 +275,25 @@ class ApiPublicController extends Controller
         $languageId = Auth::user()->language_id;
 
         $products = Product::with([
-                'brand.langs' => fn($q) => $q->where('language_id', $languageId),
-                'category.langs' => fn($q) => $q->where('language_id', $languageId),
-         /*        'goal.langs' => fn($q) => $q->where('language_id', $languageId),
-                'tag.langs' => fn($q) => $q->where('language_id', $languageId), */
                 'langs' => fn($q) => $q->where('language_id', $languageId),
+                'category.langs' => fn($q) => $q->where('language_id', $languageId),
+                'activePrice.currency',
+                'images',
             ])
             ->where('status', 1)
+            ->orderBy('id', 'desc')
             ->limit(6)
             ->get();
 
+            $products=$products->transform(function ($product) {
+                return[
+                    'id'=>$product->id,
+                    'name' => $product->langs->first()->name ?? '',
+                    'price' => $product->activePrice->price ?? 0,
+                    'image' => $product->images->pluck('image')->toArray(),
+                    'currency_symbol' => $product->activePrice?->currency->symbol ?? '',
+                ];
+            });
         return response()->json([
             'status' => 'success',
             'data' => $products,
@@ -134,7 +303,7 @@ class ApiPublicController extends Controller
     public function Brand()
     {
         $brands = Brand::join('brand_langs', 'brands.id', '=', 'brand_langs.brand_id')
-            ->select('brand_langs.name','brands.logo')
+            ->select('brands.id','brand_langs.name','brands.logo')
             ->where('brand_langs.language_id', Auth::user()->language_id)
             ->get();
         return response()->json([
@@ -146,7 +315,7 @@ class ApiPublicController extends Controller
     public function Goal()
     {
         $goals = Goal::join('goal_langs', 'goals.id', '=', 'goal_langs.goal_id')
-            ->select('goal_langs.name')
+            ->select('goals.id','goal_langs.name')
             ->where('goal_langs.language_id', Auth::user()->language_id)
             ->get();
         return response()->json([
@@ -158,7 +327,7 @@ class ApiPublicController extends Controller
     public function Tag()
     {
         $tags = Tag::join('tag_langs', 'tags.id', '=', 'tag_langs.tag_id')
-            ->select('tag_langs.name')
+            ->select('tags.id','tag_langs.name')
             ->where('tag_langs.language_id', Auth::user()->language_id)
             ->get();
         return response()->json([
@@ -198,33 +367,21 @@ class ApiPublicController extends Controller
     }
     public function OneProduct($id)
     {
-        $langId = Auth::user()->language_id;
+        $langId = Auth::user()->language_id ?? 1;
 
-        $product = Product::join('product_langs', 'products.id', '=', 'product_langs.product_id')
-            ->join('product_categories', 'products.category_id', '=', 'product_categories.id')
-            ->join('product_category_langs', 'product_categories.id', '=', 'product_category_langs.product_category_id')
-            ->join('brands', 'products.brand_id', '=', 'brands.id')
-            ->join('brand_langs', 'brands.id', '=', 'brand_langs.brand_id')
-            ->join('goals', 'products.goal_id', '=', 'goals.id')
-            ->join('goal_langs', 'goals.id', '=', 'goal_langs.goal_id')
-            ->join('tags', 'products.tag_id', '=', 'tags.id')
-            ->join('tag_langs', 'tags.id', '=', 'tag_langs.tag_id')
-            ->leftJoin('product_images', 'product_images.product_id', '=', 'products.id')
-            ->select(
-                'product_langs.name', 'product_langs.description', 'product_langs.image',
-                'product_categories.id as category_id', 'product_category_langs.name as category_name',
-                'brands.id as brand_id', 'brand_langs.name as brand_name',
-                'goals.id as goal_id', 'goal_langs.name as goal_name',
-                'tags.id as tag_id', 'tag_langs.name as tag_name'
-            )
-            ->where('product_langs.language_id', $langId)
-            ->where('product_category_langs.language_id', $langId)
-            ->where('brand_langs.language_id', $langId)
-            ->where('goal_langs.language_id', $langId)
-            ->where('tag_langs.language_id', $langId)
-            ->where('products.status', 1)
-            ->where('products.id', $id)
-            ->first(); // only one product
+        $product = Product::with([
+            'langs' => fn($q) => $q->where('language_id', $langId),
+            'category.langs' => fn($q) => $q->where('language_id', $langId),
+            'brand.langs' => fn($q) => $q->where('language_id', $langId),
+            'tags.langs' => fn($q) => $q->where('language_id', $langId),
+            'goals.langs' => fn($q) => $q->where('language_id', $langId),
+            'tastes.langs' => fn($q) => $q->where('language_id', $langId),
+            'images',
+            'price.currency',
+        ])
+        ->where('status', 1)
+        ->where('id', $id)
+        ->first();
 
         if (!$product) {
             return response()->json(['status' => 'error', 'message' => 'Product not found'], 404);
@@ -232,7 +389,7 @@ class ApiPublicController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $product,
+            'data' => new SingleProductResource($product),
         ]);
     }
 
@@ -243,9 +400,7 @@ class ApiPublicController extends Controller
         $products = Product::with([
                 'langs' => fn($q) => $q->where('language_id', $languageId),
                 'category.langs' => fn($q) => $q->where('language_id', $languageId),
-                'brand.langs' => fn($q) => $q->where('language_id', $languageId),
-                'goal.langs' => fn($q) => $q->where('language_id', $languageId),
-                'tag.langs' => fn($q) => $q->where('language_id', $languageId),
+                'activePrice.currency',
                 'images',
             ])
             ->where('status', 1)
@@ -258,14 +413,347 @@ class ApiPublicController extends Controller
                       ->where('name', 'like', '%' . $request->name . '%');
                 });
             })
-            ->orderBy('id', 'desc') // newest first
-            ->paginate(12); // change to get() if you want all without pagination
+            ->orderBy('id', 'desc')
+            ->paginate(10);
+
+            $products=$products->getCollection()->transform(function ($product) {
+                return[
+                    'id'=>$product->id,
+                    'name' => $product->langs->first()->name ?? '',
+                    'price' => $product->activePrice->price ?? 0,
+                    'image' => $product->images->pluck('image')->toArray(),
+                    'currency_symbol' => $product->activePrice?->currency->symbol ?? '',
+                ];
+            });
+
+
+            $data=[
+                'status' => 'success',
+                'data' => $products,
+            ];
+          return $this->smartReturn($request, 'welcome', compact('data'));
+    }
+
+   public function GetCart()
+    {
+        $languageId = Auth::user()->language_id ?? 1;
+
+        $cart = Transaction::with([
+            'items:id,transaction_id,product_id,taste_id,currency_id,quantity,price_per_unit,total_price',
+            'items.product:id',
+            'items.taste:id',
+            'items.currency:id,name'
+        ])
+        ->where('transaction_type_id', 1)
+        ->where('user_id', Auth::id())
+        ->select('id', 'total_price', 'created_at')
+        ->latest()
+        ->first();
+
+        if (!$cart) {
+            return response()->json(['message' => 'No cart found']);
+        }
+
+        return response()->json([
+            'id' => $cart->id,
+            'total_price' => $cart->total_price,
+            'created_at' => $cart->created_at,
+            'items' => $cart->items->map(function ($item) use ($languageId) {
+                return [
+                    'item_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'taste_id' => $item->taste_id,
+                    'product_name' => $item->product?->lang($languageId)?->name,
+                    'product_image' => $item->product?->images->first()?->image,
+                    'taste_name' => $item->taste?->lang($languageId)?->name,
+                    'currency_name' => $item->currency?->name,
+                    'quantity' => (int) $item->quantity,
+                    'price_per_unit' => (float) $item->price_per_unit,
+                    'total_price' => (float) $item->total_price,
+                ];
+            }),
+        ]);
+    }
+
+    public function AddToCart($id ,Request $request)
+    {
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json(['status' => 'error', 'message' => 'Product not found'], 404);
+        }
+
+        $transaction = Transaction::where('user_id', Auth::id())
+            ->where('transaction_type_id', 1)
+            ->first();
+
+        if (!$transaction) {
+            $transaction = Transaction::create([
+                'user_id' => Auth::id(),
+                'transaction_type_id' => 1,
+            ]);
+        }
+        $item = TransactionItem::where('transaction_id', $transaction->id)
+            ->where('product_id', $id)
+            ->where('taste_id', $request->taste_id ?? null)
+            ->first();
+        if ($item) {
+            $item->quantity += $request->quantity ?? 1;
+            $item->save();
+        } else {
+            TransactionItem::create([
+                'transaction_id' => $transaction->id,
+                'price_per_unit' => $product->priceIn(1),
+                'taste_id' => $request->taste_id ?? null,
+                'discount' => 0,
+                'total_price' => $product->priceIn(1),
+                'buy_price' => $product->buy_price,
+                'product_id' => $id,
+                'quantity' => $request->quantity ?? 1,
+                'currency_id' => 1,
+            ]);
+        }
+
+        $this->updateTransactionPrices($transaction->id);
+
+
+        return response()->json(['status' => 'success', 'message' => 'Product added to cart']);
+    }
+    public function RemoveFromCart($id)
+    {
+        $transaction = Transaction::where('user_id', Auth::id())
+            ->where('transaction_type_id', 1)
+            ->first();
+
+        if (!$transaction) {
+            return response()->json(['status' => 'error', 'message' => 'Cart not found'], 404);
+        }
+
+        $item = TransactionItem::where('id', $id)
+            ->first();
+
+        if (!$item) {
+            return response()->json(['status' => 'error', 'message' => 'Item not found in cart'], 404);
+        }
+
+
+        $item->delete();
+
+
+        $this->updateTransactionPrices($transaction->id);
+
+        return response()->json(['status' => 'success', 'message' => 'Product removed from cart']);
+    }
+    public function UpdateCart($id, $quantity)
+    {
+        $transaction = Transaction::where('user_id', Auth::id())
+            ->where('transaction_type_id', 1)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$transaction) {
+            return response()->json(['status' => 'error', 'message' => 'Cart not found'], 404);
+        }
+        $item = TransactionItem::where('id', $id)
+            ->first();
+
+        if (!$item) {
+            return response()->json(['status' => 'error', 'message' => 'Item not found in cart'], 404);
+        }
+
+        if ($quantity <= 0) {
+            $item->delete();
+        } else {
+            $item->quantity = $quantity;
+            $item->save();
+        }
+
+        $this->updateTransactionPrices($transaction->id);
+
+        return response()->json(['status' => 'success', 'message' => 'Cart updated successfully']);
+    }
+    public function Checkout(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            //'subcity_id' => 'required|string|max:255',
+            //'payment_method' => 'required|string|in:cash,credit_card',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'message' => $validator->errors()], 422);
+        }
+
+
+        $transaction = Transaction::where('user_id', Auth::id())
+            ->where('transaction_type_id', 1)
+            ->where('id',$request->transaction_id)
+            ->first();
+
+        if (!$transaction || $transaction->items->isEmpty()) {
+            return response()->json(['status' => 'error', 'message' => 'Cart is empty'], 400);
+        }
+
+        $officeId=OfficeSubcity::where('subcity_id', Auth::user()->subcity_id)
+            ->value('office_id');
+       // $transaction->transaction_type_id = 2;
+        $transaction->address = $request->address;
+        $transaction->office_id = $officeId;
+        $transaction->order_note = $request->note ?? '';
+       // $transaction->subcity_id = $request->subcity_id;
+        $transaction->transaction_date = now();
+        $transaction->save();
+
+        return response()->json(['status' => 'success', 'message' => 'Checkout successful']);
+    }
+    public function Search(Request $request)
+    {
+        $searchTerm = $request->input('query');
+
+        if (!$searchTerm) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Query is required',
+            ], 400);
+        }
+
+        $languageId = Auth::user()->language_id;
+
+        $products = Product::with(['langs' => function ($q) use ($languageId) {
+                $q->where('language_id', $languageId);
+            }])
+            ->where('status', 1)
+            ->whereHas('langs', function ($q) use ($searchTerm, $languageId) {
+                $q->where('language_id', $languageId)
+                ->where('name', 'like', '%' . $searchTerm . '%');
+            })
+            ->paginate(12);
 
         return response()->json([
             'status' => 'success',
             'data' => $products,
         ]);
     }
+
+
+
+    public function Cities()
+    {
+        $cities = City::join('city_langs', 'cities.id', '=', 'city_langs.city_id')
+            ->select('cities.id','city_langs.name')
+            ->where('city_langs.lang_id', Auth::user()->language_id)
+            ->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $cities,
+        ]);
+    }
+    public function SubCities()
+    {
+        $subcities = Subcity::join('subcity_langs', 'subcities.id', '=', 'subcity_langs.subcity_id')
+            ->select('subcities.id','subcity_langs.name', 'subcities.city_id')
+            ->where('subcity_langs.langid', Auth::user()->language_id)
+            ->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $subcities,
+        ]);
+    }
+    public function SubCitiesByCityId($id)
+    {
+        $subcities = Subcity::join('subcity_langs', 'subcities.id', '=', 'subcity_langs.subcity_id')
+            ->select('subcities.id','subcity_langs.name', 'subcities.city_id')
+            ->where('subcity_langs.langid', Auth::user()->language_id)
+            ->where('subcities.city_id', $id)
+            ->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $subcities,
+        ]);
+    }
+
+     //offices
+    public function Offices()
+    {
+        $offices = Office::with(['subcities.langs' => function ($query) {
+            $query->where('langid', Auth::user()->language_id);
+        }])->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $offices,
+        ]);
+    }
+
+    public function OfficeSubCities()
+    {
+        $officeSubcities = OfficeSubcity::with(['office.langs' => function ($query) {
+            $query->where('langid', Auth::user()->language_id);
+        }, 'subcity.langs' => function ($query) {
+            $query->where('langid', Auth::user()->language_id);
+        }])->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $officeSubcities,
+        ]);
+    }
+    public function OfficeSubCitiesByOfficeId($officeId)
+    {
+        $officeSubcities = OfficeSubcity::with(['subcity.langs' => function ($query) {
+            $query->where('langid', Auth::user()->language_id);
+        }])->where('office_id', $officeId)->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $officeSubcities,
+        ]);
+    }
+    public function OfficeSubCitiesBySubCityId($subcityId)
+    {
+        $officeSubcities = OfficeSubcity::with(['office.langs' => function ($query) {
+            $query->where('langid', Auth::user()->language_id);
+        }])->where('subcity_id', $subcityId)->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $officeSubcities,
+        ]);
+    }
+
+    public function selectPaymentMethod(Request $request)
+    {
+        // Validate input
+        $request->validate([
+            'transaction_id' => 'required|exists:transactions,id',
+            'payment_method_id' => 'required|exists:payment_methods,id',
+        ]);
+
+        // Get the transaction
+        $transaction = Transaction::find($request->transaction_id);
+
+        // Check transaction type
+        if ($transaction->transaction_type_id != 1) {
+            return response()->json([
+                'error' => 'Invalid transaction type'
+            ], 400);
+        }
+
+        // Update payment method
+        $transaction->payment_method = $request->payment_method_id;
+        $transaction->save();
+
+        return response()->json([
+            'message' => 'Payment method selected successfully',
+            'transaction' => $transaction
+        ]);
+    }
+
+    public function GetPaymentMethod()
+    {
+        $methods = PaymentMethod::all();
+        return response()->json([
+            'payment_methods' => $methods
+        ]);
+    }
+
 
 
 

@@ -13,4 +13,5 @@ class SliderLang extends Model
         'title',
         'description',
     ];
+
 }

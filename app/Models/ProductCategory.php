@@ -15,3 +15,4 @@ class ProductCategory extends Model
         return $this->hasMany(ProductCategoryLang::class , 'product_category_id'); // or respective Lang model
     }
 }
+ 

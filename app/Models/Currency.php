@@ -6,8 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class Currency extends Model
 {
-    public function langs()
+    protected $fillable = [
+        'name',
+        'code',
+        'symbol',
+        'exchange_rate',
+        'is_active',
+    ];
+
+    public function getActiveCurrencies()
     {
-        return $this->hasMany(GoalLang::class, 'goal_id');
+        return self::where('is_active', true)->get();
     }
+
+
+
 }

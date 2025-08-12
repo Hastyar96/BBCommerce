@@ -10,4 +10,10 @@ class Slider extends Model
         'name',
         'status',
     ];
+
+    public function langs()
+{
+    return $this->hasMany(SliderLang::class, 'slider_id');
+}
+
 }

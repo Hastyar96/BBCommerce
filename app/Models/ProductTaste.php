@@ -6,5 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProductTaste extends Model
 {
-    
+    protected $fillable=[
+        'product_id',
+        'taste_id',
+    ];
 }

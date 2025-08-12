@@ -25,11 +25,36 @@ class User extends Authenticatable
         'phone',
         'password',
         'verify_code',
+        'otp_expires_at',
         'phone_verified_at',
+        'cuntry_code',
         'role_id',
         'is_verify',
         'language_id',
+        'is_admin',
+        'office_id',
+        'is_guest',
+        'session',
+        'subcity_id',
+        'image_profile',
+        'image_cover',
     ];
+
+    public function language()
+    {
+        return $this->belongsTo(Language::class);
+    }
+
+    public function subcity()
+    {
+        return $this->belongsTo(Subcity::class);
+    }
+
+
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
+    }
 
     /**
      * The attributes that should be hidden for serialization.
@@ -53,4 +78,5 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
 }

@@ -20,4 +20,12 @@ class Taste extends Model
     {
         return $this->hasMany(TasteLang::class);
     }
+    public function lang($languageId)
+    {
+        return $this->translations()->where('language_id', $languageId)->first();
+    }
+    public function langs()
+    {
+        return $this->hasMany(TasteLang::class);
+    }
 }

@@ -11,5 +11,11 @@ class ProductLang extends Model
         'language_id',
         'name',
         'description',
+        'suited_for',
+        'recommended_use'
     ];
+     public function language()
+    {
+        return $this->belongsTo(Language::class, 'language_id');
+    }
 }
