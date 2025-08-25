@@ -434,6 +434,94 @@ class ApiPublicController extends Controller
           return $this->smartReturn($request, 'welcome', compact('data'));
     }
 
+    public function GetOrderHistory()
+    {
+        $languageId = Auth::user()->language_id ?? 1;
+
+        // Get all transactions (orders) for the user, exclude pending cart if needed
+        $orders = Transaction::with([
+            'items:id,transaction_id,product_id,taste_id,currency_id,quantity,price_per_unit,total_price',
+            'items.product:id',
+            'items.taste:id',
+            'items.currency:id,name'
+        ])
+        ->where('user_id', Auth::id())
+        ->where('transaction_type_id', '!=', 1) // optional: exclude current cart
+        ->select('id', 'total_price', 'transaction_type_id', 'created_at')
+        ->latest()
+        ->get();
+
+        if ($orders->isEmpty()) {
+            return response()->json(['message' => 'No orders found']);
+        }
+
+        return response()->json([
+            'orders' => $orders->map(function ($order) use ($languageId) {
+                return [
+                    'order_id' => $order->id,
+                    'total_price' => $order->total_price,
+                    'transaction_type_id' => $order->transaction_type_id,
+                    'created_at' => $order->created_at,
+                    'items' => $order->items->map(function ($item) use ($languageId) {
+                        return [
+                            'item_id' => $item->id,
+                            'product_id' => $item->product_id,
+                            'taste_id' => $item->taste_id,
+                            'product_name' => $item->product?->lang($languageId)?->name,
+                            'product_image' => $item->product?->images->first()?->image,
+                            'taste_name' => $item->taste?->lang($languageId)?->name,
+                            'currency_name' => $item->currency?->name,
+                            'quantity' => (int) $item->quantity,
+                            'price_per_unit' => (float) $item->price_per_unit,
+                            'total_price' => (float) $item->total_price,
+                        ];
+                    }),
+                ];
+            }),
+        ]);
+    }
+
+    public function GetOneOrder($id)
+    {
+        $languageId = Auth::user()->language_id ?? 1;
+
+        $order = Transaction::with([
+            'items:id,transaction_id,product_id,taste_id,currency_id,quantity,price_per_unit,total_price',
+            'items.product:id',
+            'items.taste:id',
+            'items.currency:id,name'
+        ])
+        ->where('user_id', Auth::id())
+        ->where('id', $id)
+        ->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        return response()->json([
+            'order_id' => $order->id,
+            'total_price' => $order->total_price,
+            'transaction_type_id' => $order->transaction_type_id,
+            'created_at' => $order->created_at,
+            'items' => $order->items->map(function ($item) use ($languageId) {
+                return [
+                    'item_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'taste_id' => $item->taste_id,
+                    'product_name' => $item->product?->lang($languageId)?->name,
+                    'product_image' => $item->product?->images->first()?->image,
+                    'taste_name' => $item->taste?->lang($languageId)?->name,
+                    'currency_name' => $item->currency?->name,
+                    'quantity' => (int) $item->quantity,
+                    'price_per_unit' => (float) $item->price_per_unit,
+                    'total_price' => (float) $item->total_price,
+                ];
+            }),
+        ]);
+    }
+
+
    public function GetCart()
     {
         $languageId = Auth::user()->language_id ?? 1;

@@ -3,7 +3,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ApiPublicController;
-use App\Http\Controllers\ApiPaymentController;
+use App\Http\Controllers\ApiFibPaymentController;
+use App\Http\Controllers\ApiCashDeliveryPaymentController;
+
+
+Route::post('/payment-updates', [ApiFibPaymentController::class, 'handlePaymentUpdate']);
 
 Route::middleware('auth:sanctum')->group(function (){
 
@@ -52,6 +56,10 @@ Route::middleware('auth:sanctum')->group(function (){
 
     //
 
+    // Order history
+    Route::get('orders/history', [ApiPublicController::class, 'GetOrderHistory']);
+    Route::get('order/{id}', [ApiPublicController::class, 'GetOneOrder']);
+
     //card
     Route::get('get/cart',[ApiPublicController::class ,'GetCart']);
     Route::Post('add/to/cart/{id}',[ApiPublicController::class ,'AddToCart']);
@@ -66,12 +74,15 @@ Route::middleware('auth:sanctum')->group(function (){
 
     Route::get('get/payment-method',[ApiPublicController::class , 'GetPaymentMethod']);
 
+
+    //cash on delivery
+     Route::post('complate/cash-on-delivery', [ApiCashDeliveryPaymentController::class, 'CashOnDelivery']);
+
     //fib
-    Route::post('/payment/create', [ApiPaymentController::class, 'createPayment']);
-    Route::post('/payment-updates', [ApiPaymentController::class, 'handlePaymentUpdate']);
-    Route::get('/payment/status/{paymentId}', [ApiPaymentController::class, 'checkPaymentStatus']);
-    Route::post('/payment/cancel/{paymentId}', [ApiPaymentController::class, 'cancelPayment']);
-    Route::post('/payment/refund/{paymentId}', [ApiPaymentController::class, 'refundPayment']);
+    Route::post('/payment/create', [ApiFibPaymentController::class, 'createPayment']);
+    Route::get('/payment/status/{paymentId}', [ApiFibPaymentController::class, 'checkPaymentStatus']);
+    Route::post('/payment/cancel/{paymentId}', [ApiFibPaymentController::class, 'cancelPayment']);
+    Route::post('/payment/refund/{paymentId}', [ApiFibPaymentController::class, 'refundPayment']);
     //////////////////
 
     //thank you page

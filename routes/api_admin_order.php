@@ -10,6 +10,9 @@ Route::middleware('auth:sanctum')->group(function (){
 
     //Ordes
     Route::get('admin/get/orders/{type_id}',[ApiAdminOrderController::class ,'GetOrders']);
+
+    Route::get('admin/order/{id}', [ApiAdminOrderController::class, 'getOrder']);
+
     Route::get('admin/order/accept/{id}',[ApiAdminOrderController::class ,'AcceptOrder']);
     Route::post('admin/order/delivery/{id}',[ApiAdminOrderController::class ,'DeliveryOrder']);
     Route::get('admin/order/reject/{id}',[ApiAdminOrderController::class ,'RejectOrder']);

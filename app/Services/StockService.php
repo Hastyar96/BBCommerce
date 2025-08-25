@@ -7,8 +7,12 @@ use App\Models\Transaction;
 
 class StockService
 {
-    public function updateStockForTransaction(Transaction $transaction)
+    public function updateStockByTransactionId($transactionId)
     {
+        // Load the transaction with its related items and transactionType
+        $transaction = Transaction::with(['items', 'transactionType'])
+            ->findOrFail($transactionId);
+
         foreach ($transaction->items as $transactionItem) {
 
             $stock = Stock::firstOrCreate(

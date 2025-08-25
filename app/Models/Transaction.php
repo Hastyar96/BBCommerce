@@ -6,9 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
-   protected $fillable = [
+    protected $fillable = [
         'note',
-        //'transaction_type',
         'office_id',
         'transaction_number',
         'taxi_id',
@@ -35,29 +34,49 @@ class Transaction extends Model
         'order_status',
         'order_note',
         'order_first_change_status_date',
-        'adderess',
-
+        'address',
         'original_transaction_id',
-
         'is_paid',
         'paid_at',
         'payment_reference',
     ];
 
-     public function items()
+    // Relations
+    public function items()
     {
         return $this->hasMany(TransactionItem::class, 'transaction_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'transaction_id');
     }
 
     public function paymentMethod()
     {
         return $this->belongsTo(PaymentMethod::class, 'payment_method', 'id');
     }
+
     public function transactionType()
     {
         return $this->belongsTo(TransactionType::class, 'transaction_type_id');
     }
 
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
+    }
 
+    // Total paid amount
+    public function totalPaid()
+    {
+        return $this->payments()->where('status', 'paid')->sum('amount');
+    }
 
+    // Remaining unpaid amount
+    public function unpaidAmount()
+    {
+        return $this->total_price - $this->totalPaid();
+    }
 }
+

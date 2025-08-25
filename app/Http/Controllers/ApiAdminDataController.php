@@ -1012,18 +1012,23 @@ class ApiAdminDataController extends Controller
         // ========== Langs ==========
         if ($request->has('langs')) {
             foreach ($request->input('langs') as $lang) {
-                   ProductLang::updateOrCreate(
+                ProductLang::updateOrCreate(
+                    // Condition (find by product + language)
                     [
-                        'product_id' => $product->id,
-                        'language_id' => $lang['language_id'],
+                        'product_id'   => $product->id,
+                        'language_id'  => $lang['language_id'],
                     ],
+                    // Values to update or insert
                     [
-                        'name' => $lang['name'],
-                        'description' => $lang['description'] ?? '',
+                        'name'             => $lang['name'],
+                        'description'      => $lang['description'] ?? '',
+                        'suited_for'       => $lang['suited_for'],
+                        'recommended_use'  => $lang['recommended_use'],
                     ]
                 );
             }
         }
+
 
         // ========== Prices ==========
         if ($request->has('prices')) {
