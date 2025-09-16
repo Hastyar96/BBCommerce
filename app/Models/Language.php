@@ -13,5 +13,9 @@ class Language extends Model
     {
         return $this->hasMany(TasteLang::class);
     }
+       public function faqLangs()
+    {
+        return $this->hasMany(FaqLang::class);
+    }
 
 }

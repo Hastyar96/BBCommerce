@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function (){
     Route::get('tag', [ApiPublicController::class, 'Tag']);
 
     //top 6 products
-    Route::get('main/top/products', [ApiPublicController::class, 'TopProducts']);
+    //Route::get('main/top/products', [ApiPublicController::class, 'TopProducts']);
 
     //news
     Route::get('news', [ApiPublicController::class, 'News']);
@@ -115,5 +115,15 @@ Route::middleware('auth:sanctum')->group(function (){
     Route::get('office/subcities/subcity/{id}', [ApiPublicController::class, 'OfficeSubCitiesBySubCityId']);
 
 
+    Route::post('favorites/toggle', [ApiPublicController::class, 'toggleFavorite']);
+    Route::get('favorites', [ApiPublicController::class, 'viewFavorites']);
+
+    Route::post('likes/toggle', [ApiPublicController::class, 'toggleLike']);
+    Route::post('reviews', [ApiPublicController::class, 'addReview']);
+    Route::get('products/{productId}/reviews', [ApiPublicController::class, 'viewReviews']);
+
+    Route::get('/faqs', [ApiPublicController::class, 'showFaqs']);
+    Route::get('/faqs/{id}', [ApiPublicController::class, 'showFaq']);
+    Route::get('/faqs/search', [ApiPublicController::class, 'searchFaqs']);
 
 });

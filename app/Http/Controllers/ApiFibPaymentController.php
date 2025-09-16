@@ -56,7 +56,7 @@ class ApiFibPaymentController extends Controller
                     'currency' => 'IQD',
                 ],
                 'statusCallbackUrl' => config('app.url') . '/api/payment-updates',
-                'redirectUri' => "myapp://payment-redirect?transactionId={$transaction->id}",
+                'redirectUri' => $request->redirectUri,
                 'description' => $request->description ?? 'Payment for transaction #' . $transaction->transaction_number,
                 'expiresIn' => 'PT15M',
             ];
@@ -144,7 +144,11 @@ class ApiFibPaymentController extends Controller
         $payment->update(['status' => strtolower($status)]);
 
         if ($status === 'PAID') {
-            $payment->update(['paid_at' => now()]);
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => now()
+            ]);
+
             $payment->transaction->update(['transaction_type_id' => 2]);
         } elseif (in_array($status, ['DECLINED', 'REFUNDED', 'FAILED', 'EXPIRED'])) {
             $payment->update(['paid_at' => null]);
@@ -165,42 +169,31 @@ class ApiFibPaymentController extends Controller
     {
         try {
             $token = $this->getAccessToken();
-
+            $url = "https://fib.stage.fib.iq/protected/v1/payments/{$paymentId}/status";
             $response = Http::withToken($token)
-                ->get("https://fib.stage.fib.iq/protected/v1/payments/{$paymentId}");
-
+                ->withHeaders(['Accept' => 'application/json', 'User-Agent' => 'BritishBody/1.0'])
+                ->get($url);
             if ($response->successful()) {
                 $data = $response->json();
-
                 $payment = Payment::where('reference', $paymentId)->first();
-                if ($payment) {
-                    if (($data['status'] ?? null) === 'PAID') {
-                        $payment->update(['paid_at' => now()]);
-                        $payment->update(['status'=> 'paid']);
-                        $payment->transaction->update(['transaction_type_id' => 2]);
-                    }
+                if ($payment && ($data['status'] ?? null) === 'PAID') {
+                    $payment->update(['paid_at' => now(), 'status' => 'paid']);
+                    $payment->transaction->update(['transaction_type_id' => 2]);
                 }
-
                 return response()->json($data);
             }
-
-            return response()->json([
-                'error' => 'Failed to check payment status: ' . $response->body()
-            ], $response->status());
-
+            \Log::error('403 Error: ' . $response->body());
+            return response()->json(['error' => 'Failed: ' . $response->body()], $response->status());
         } catch (Exception $e) {
-            return response()->json([
-                'error' => 'Exception: ' . $e->getMessage(),
-            ], 500);
+            \Log::error('Error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
     // Cancel Payment
     public function cancelPayment(Request $request, $paymentId)
     {
         try {
             $token = $this->getAccessToken();
-
             $response = Http::withToken($token)
                 ->post("https://fib.stage.fib.iq/protected/v1/payments/{$paymentId}/cancel");
 
@@ -208,7 +201,7 @@ class ApiFibPaymentController extends Controller
                 $payment = Payment::where('reference', $paymentId)->first();
                 if ($payment) {
                     $payment->update(['paid_at' => null]);
-                  $payment->update(['status'=> 'cancel']);
+                  $payment->update(['status'=> 'canceled']);
                     $payment->transaction->update(['transaction_type_id' => 7]); // canceled
                 }
 

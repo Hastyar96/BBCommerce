@@ -17,4 +17,6 @@ Route::middleware('auth:sanctum')->group(function (){
     Route::post('admin/order/delivery/{id}',[ApiAdminOrderController::class ,'DeliveryOrder']);
     Route::get('admin/order/reject/{id}',[ApiAdminOrderController::class ,'RejectOrder']);
     Route::get('admin/order/complete/{id}',[ApiAdminOrderController::class ,'CompleteOrder']);
+
+    Route::get('admin/get/order/status/name',[ApiAdminOrderController::class ,'GetOrderStatus']);
 });

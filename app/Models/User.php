@@ -38,6 +38,7 @@ class User extends Authenticatable
         'subcity_id',
         'image_profile',
         'image_cover',
+        'fcm_token',
     ];
 
     public function language()

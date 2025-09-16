@@ -35,10 +35,16 @@ use App\Models\City;
 use App\Models\Subcity;
 use App\Models\Office;
 use App\Models\OfficeSubcity;
+use App\Models\TransactionType;
 
 
 class ApiAdminOrderController extends Controller
 {
+    public function GetOrderStatus()
+    {
+        $statuses =TransactionType::all();
+        return response()->json($statuses);
+    }
     public function getOrders($type_id)
     {
         $user = Auth::user();
@@ -206,7 +212,7 @@ class ApiAdminOrderController extends Controller
             return response()->json(['error' => 'Order not found'], 404);
         }
 
-        $order->transaction_type_id = 2;
+        $order->transaction_type_id = 3;
         $order->save();
 
         return response()->json(['message' => 'Order accepted successfully']);
@@ -224,7 +230,7 @@ class ApiAdminOrderController extends Controller
             return response()->json(['error' => 'Order not found'], 404);
         }
 
-        $order->transaction_type_id = 5;
+        $order->transaction_type_id = 4;
         $order->taxi_id = $request->input('taxi_id');
         $order->taxi_garawatawa =0;
         $order->who_loan = 2;

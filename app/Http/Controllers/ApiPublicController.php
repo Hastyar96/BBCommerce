@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Services\FirebaseService;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\File;
 
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\SingleProductResource;
@@ -44,6 +45,12 @@ use App\Models\Office;
 use App\Models\OfficeSubcity;
 use App\Models\CountryCode;
 use App\Models\PaymentMethod;
+use App\Models\Favorite;
+use App\Models\Like;
+use App\Models\Review;
+use App\Models\Faq;
+use App\Models\FaqLang;
+
 
 class ApiPublicController extends Controller
 {
@@ -180,45 +187,90 @@ class ApiPublicController extends Controller
         ]);
     }
 
-        public function EditUser(Request $request)
-        {
-            $user = Auth::user();
+    public function EditUser(Request $request)
+    {
+        $user = Auth::user();
 
-            $validator = Validator::make($request->all(), [
-                'first_name' => 'nullable|string|max:255',
-                'last_name' => 'nullable|string|max:255',
-                'phone' => 'nullable|string|max:20|unique:users,phone,' . $user->id,
-                //'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
-                'language_id' => 'nullable|exists:languages,id',
-                'password' => 'nullable|string|min:8|confirmed',
-                'subcity_id' => 'nullable|exists:subcities,id',
-                'image_profile' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-                'image_cover' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-                'subcity_id' => 'nullable',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'language_id' => 'nullable|exists:languages,id',
+            'password' => 'nullable|string|min:8|confirmed',
+            'subcity_id' => 'nullable|exists:subcities,id',
+            'image_profile' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image_cover' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'status' => 'error',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $user->update($request->only([
-                'first_name',
-                'last_name',
-                'phone',
-                'email',
-                'language_id',
-                'subcity_id',
-            ]));
-
+        if ($validator->fails()) {
             return response()->json([
-                'status' => 'success',
-                'message' => 'User updated successfully',
-                'user' => $user,
-            ]);
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        // Prepare data for update
+        $data = [
+            'first_name' => $request->filled('first_name') ? $request->first_name : $user->first_name,
+            'last_name' => $request->filled('last_name') ? $request->last_name : $user->last_name,
+            'language_id' => $request->filled('language_id') ? $request->language_id : $user->language_id,
+            'subcity_id' => $request->filled('subcity_id') ? $request->subcity_id : $user->subcity_id,
+            'password' => $request->filled('password') ? bcrypt($request->password) : $user->password,
+        ];
+
+        // Ensure public/users directory exists
+        $usersPath = public_path('users');
+        if (!File::exists($usersPath)) {
+            File::makeDirectory($usersPath, 0755, true);
+        }
+
+        // Handle profile image
+        if ($request->hasFile('image_profile')) {
+            // Delete old profile image if it exists
+            if ($user->image_profile && File::exists(public_path($user->image_profile))) {
+                File::delete(public_path($user->image_profile));
+            }
+            // Generate unique filename
+            $profileImage = $request->file('image_profile');
+            $profileImageName = 'profile_' . time() . '.' . $profileImage->getClientOriginalExtension();
+            // Move file to public/users
+            $profileImage->move($usersPath, $profileImageName);
+            // Store relative path
+            $data['image_profile'] = 'users/' . $profileImageName;
+        }
+
+        // Handle cover image
+        if ($request->hasFile('image_cover')) {
+            // Delete old cover image if it exists
+            if ($user->image_cover && File::exists(public_path($user->image_cover))) {
+                File::delete(public_path($user->image_cover));
+            }
+            // Generate unique filename
+            $coverImage = $request->file('image_cover');
+            $coverImageName = 'cover_' . time() . '.' . $coverImage->getClientOriginalExtension();
+            // Move file to public/users
+            $coverImage->move($usersPath, $coverImageName);
+            // Store relative path
+            $data['image_cover'] = 'users/' . $coverImageName;
+        }
+
+        // Update user
+        $user->update($data);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'User updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'language_id' => $user->language_id,
+                'subcity_id' => $user->subcity_id,
+                'image_profile' => $user->image_profile ? url($user->image_profile) : null,
+                'image_cover' => $user->image_cover ? url($user->image_cover) : null,
+                'updated_at' => $user->updated_at,
+            ],
+        ], 200);
+    }
 
     public function EditUserSubCity(Request $request)
     {
@@ -269,36 +321,28 @@ class ApiPublicController extends Controller
             'data' => $category,
         ]);
     }
-
+    /*
     public function TopProducts()
     {
-        $languageId = Auth::user()->language_id;
+        $languageId = Auth::user()->language_id ?? 1;
 
         $products = Product::with([
-                'langs' => fn($q) => $q->where('language_id', $languageId),
-                'category.langs' => fn($q) => $q->where('language_id', $languageId),
-                'activePrice.currency',
-                'images',
-            ])
-            ->where('status', 1)
-            ->orderBy('id', 'desc')
-            ->limit(6)
-            ->get();
+            'langs' => fn($q) => $q->where('language_id', $languageId),
+            'category.langs' => fn($q) => $q->where('language_id', $languageId),
+            'activePrice.currency',
+            'images',
+        ])
+        ->where('status', 1)
+        ->orderBy('id', 'desc')
+        ->limit(6)
+        ->get();
 
-            $products=$products->transform(function ($product) {
-                return[
-                    'id'=>$product->id,
-                    'name' => $product->langs->first()->name ?? '',
-                    'price' => $product->activePrice->price ?? 0,
-                    'image' => $product->images->pluck('image')->toArray(),
-                    'currency_symbol' => $product->activePrice?->currency->symbol ?? '',
-                ];
-            });
         return response()->json([
             'status' => 'success',
-            'data' => $products,
-        ]);
+            'data' => ProductResource::collection($products), // Use ProductResource
+        ], 200);
     }
+    */
 
     public function Brand()
     {
@@ -378,60 +422,81 @@ class ApiPublicController extends Controller
             'tastes.langs' => fn($q) => $q->where('language_id', $langId),
             'images',
             'price.currency',
+            'activePrice.currency',
         ])
+        ->withCount(['likes', 'reviews'])
         ->where('status', 1)
         ->where('id', $id)
         ->first();
 
         if (!$product) {
-            return response()->json(['status' => 'error', 'message' => 'Product not found'], 404);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Product not found',
+            ], 404);
         }
 
         return response()->json([
             'status' => 'success',
             'data' => new SingleProductResource($product),
-        ]);
+        ], 200);
     }
+
 
     public function allProducts(Request $request)
     {
-        $languageId = Auth::user()->language_id;
+        $languageId = Auth::user()->language_id ?? 1;
 
-        $products = Product::with([
-                'langs' => fn($q) => $q->where('language_id', $languageId),
-                'category.langs' => fn($q) => $q->where('language_id', $languageId),
-                'activePrice.currency',
-                'images',
-            ])
-            ->where('status', 1)
-            ->when($request->category_id, function ($query) use ($request) {
-                $query->where('category_id', $request->category_id);
-            })
-            ->when($request->name, function ($query) use ($request, $languageId) {
-                $query->whereHas('langs', function ($q) use ($request, $languageId) {
-                    $q->where('language_id', $languageId)
-                      ->where('name', 'like', '%' . $request->name . '%');
-                });
-            })
-            ->orderBy('id', 'desc')
-            ->paginate(10);
+        $query = Product::with([
+            'langs' => fn($q) => $q->where('language_id', $languageId),
+            'category.langs' => fn($q) => $q->where('language_id', $languageId),
+            'activePrice.currency',
+            'images',
+            'brand.langs' => fn($q) => $q->where('language_id', $languageId),
+            'tags.langs' => fn($q) => $q->where('language_id', $languageId),
+            'goals.langs' => fn($q) => $q->where('language_id', $languageId),
+            'tastes.langs' => fn($q) => $q->where('language_id', $languageId),
+        ])
+        ->withCount(['likes', 'reviews'])
+        ->where('status', 1);
 
-            $products=$products->getCollection()->transform(function ($product) {
-                return[
-                    'id'=>$product->id,
-                    'name' => $product->langs->first()->name ?? '',
-                    'price' => $product->activePrice->price ?? 0,
-                    'image' => $product->images->pluck('image')->toArray(),
-                    'currency_symbol' => $product->activePrice?->currency->symbol ?? '',
-                ];
-            });
+        // Filters
+        $query->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id));
+        $query->when($request->brand_id, fn($q) => $q->where('brand_id', $request->brand_id));
+        $query->when($request->tag_id, fn($q) => $q->whereHas('tags', fn($q) => $q->where('tag_id', $request->tag_id)));
+        $query->when($request->goal_id, fn($q) => $q->whereHas('goals', fn($q) => $q->where('goal_id', $request->goal_id)));
+        $query->when($request->name, fn($q) =>
+            $q->whereHas('langs', fn($q2) =>
+                $q2->where('language_id', $languageId)->where('name', 'like', '%' . $request->name . '%')
+            )
+        );
 
+        // Check if limit is provided
+        $limit = $request->input('limit');
+        if ($limit) {
+            // Ensure limit is a positive integer, cap it for safety (e.g., max 100)
+            $limit = min(max((int)$limit, 1), 100);
+            $products = $query->orderBy('id', 'desc')->take($limit)->get();
 
-            $data=[
+            return response()->json([
                 'status' => 'success',
-                'data' => $products,
-            ];
-          return $this->smartReturn($request, 'welcome', compact('data'));
+                'data' => ProductResource::collection($products),
+            ], 200);  
+        }
+
+        // Default to paginated results
+        $products = $query->orderBy('id', 'desc')->paginate(10);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => ProductResource::collection($products),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'total' => $products->total(),
+                'per_page' => $products->perPage(),
+                'last_page' => $products->lastPage(),
+            ],
+        ], 200);
     }
 
     public function GetOrderHistory()
@@ -572,6 +637,7 @@ class ApiPublicController extends Controller
 
         $transaction = Transaction::where('user_id', Auth::id())
             ->where('transaction_type_id', 1)
+            ->orderBy('created_at', 'desc')
             ->first();
 
         if (!$transaction) {
@@ -582,7 +648,7 @@ class ApiPublicController extends Controller
         }
         $item = TransactionItem::where('transaction_id', $transaction->id)
             ->where('product_id', $id)
-            ->where('taste_id', $request->taste_id ?? null)
+            ->where('taste_id', $request->taste_id)
             ->first();
         if ($item) {
             $item->quantity += $request->quantity ?? 1;
@@ -842,6 +908,436 @@ class ApiPublicController extends Controller
         ]);
     }
 
+
+
+
+        /**
+     * Toggle a product in the user's favorites (add or remove).
+     */
+    public function toggleFavorite(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+        ]);
+
+        $userId = Auth::user()->id;
+        $productId = $request->product_id;
+
+        // Check if the product is already favorited
+        $product = Product::find($productId);
+        $isFavorited = $product->isFavoritedBy($userId);
+
+        if ($isFavorited) {
+            // Remove from favorites
+            Favorite::where('user_id', $userId)
+                    ->where('product_id', $productId)
+                    ->delete();
+            $message = 'Product removed from favorites.';
+            $isFavorited = false;
+        } else {
+            // Add to favorites
+            Favorite::create([
+                'user_id' => $userId,
+                'product_id' => $productId,
+            ]);
+            $message = 'Product added to favorites.';
+            $isFavorited = true;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => [
+                'product_id' => $productId,
+                'is_favorited' => $isFavorited,
+            ],
+        ], 200);
+    }
+
+    /**
+     * View the user's favorite products with pagination.
+     */
+    public function viewFavorites(Request $request)
+    {
+        $languageId = Auth::user()->language_id;
+        $userId = Auth::user()->id;
+
+        // Build the query for favorite products
+        $query = Product::with([
+            'langs' => fn($q) => $q->where('language_id', $languageId),
+            'category.langs' => fn($q) => $q->where('language_id', $languageId),
+            'activePrice.currency',
+            'images',
+            'brand.langs' => fn($q) => $q->where('language_id', $languageId),
+        ])
+        ->where('status', 1)
+        ->whereHas('favorites', fn($q) => $q->where('user_id', $userId));
+
+        // Apply filters
+        $query->when($request->category_id, fn($q) =>
+            $q->where('category_id', $request->category_id)
+        );
+
+        $query->when($request->brand_id, fn($q) =>
+            $q->where('brand_id', $request->brand_id)
+        );
+
+        $query->when($request->tag_id, fn($q) =>
+            $q->whereHas('tags', fn($q) =>
+                $q->where('tag_id', $request->tag_id)
+            )
+        );
+
+        $query->when($request->goal_id, fn($q) =>
+            $q->whereHas('goals', fn($q) =>
+                $q->where('goal_id', $request->goal_id)
+            )
+        );
+
+        $query->when($request->name, fn($q) =>
+            $q->whereHas('langs', fn($q2) =>
+                $q2->where('language_id', $languageId)
+                   ->where('name', 'like', '%' . $request->name . '%')
+            )
+        );
+
+        // Paginate with 10 products per page
+        $products = $query->orderBy('id', 'desc')->paginate(10);
+
+        // Transform the paginated results
+        $transformedProducts = $products->getCollection()->transform(function ($product) use ($userId) {
+            return [
+                'id' => $product->id,
+                'name' => $product->langs->first()->name ?? '',
+                'price' => $product->activePrice->price ?? 0,
+                'image' => $product->images->pluck('image')->toArray(),
+                'currency_symbol' => $product->activePrice?->currency->symbol ?? '',
+                'category' => $product->category->langs->first()->name ?? '',
+                'brand' => $product->brand->langs->first()->name ?? '',
+                'is_favorited' => $product->isFavoritedBy($userId),
+            ];
+        });
+
+        // Prepare JSON response
+        $data = [
+            'status' => 'success',
+            'data' => $transformedProducts,
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'total' => $products->total(),
+                'per_page' => $products->perPage(),
+                'last_page' => $products->lastPage(),
+            ],
+        ];
+
+        return response()->json($data, 200);
+    }
+
+
+    /**
+     * Toggle Like for a product
+     */
+    public function toggleLike(Request $request)
+    {
+        $request->validate(['product_id' => 'required|exists:products,id']);
+        $userId = Auth::user()->id;
+        $productId = $request->product_id;
+
+        $product = Product::find($productId);
+        $isLiked = $product->isLikedBy($userId);
+
+        if ($isLiked) {
+            Like::where('user_id', $userId)->where('product_id', $productId)->delete();
+            $message = 'Product unliked.';
+            $isLiked = false;
+        } else {
+            Like::create(['user_id' => $userId, 'product_id' => $productId]);
+            $message = 'Product liked.';
+            $isLiked = true;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => ['product_id' => $productId, 'is_liked' => $isLiked],
+        ], 200);
+    }
+
+    /**
+     * Add a Review for a product
+     */
+    public function addReview(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        $userId = Auth::user()->id;
+        $productId = $request->product_id;
+
+        // Check if user already reviewed
+        if (Review::where('user_id', $userId)->where('product_id', $productId)->exists()) {
+            return response()->json(['status' => 'error', 'message' => 'You already reviewed this product.'], 400);
+        }
+
+        Review::create([
+            'user_id' => $userId,
+            'product_id' => $productId,
+            'rating' => $request->rating,
+            'comment' => $request->comment,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Review added successfully.',
+            'data' => ['product_id' => $productId],
+        ], 201);
+    }
+
+    /**
+     * View Reviews for a product
+     */
+    public function viewReviews(Request $request, $productId)
+    {
+        $request->validate(['product_id' => 'exists:products,id']);
+        $languageId = Auth::user()->language_id;
+
+        $reviews = Review::with(['user', 'product.langs' => fn($q) => $q->where('language_id', $languageId)])
+            ->where('product_id', $productId)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $transformedReviews = $reviews->getCollection()->transform(function ($review) {
+            return [
+                'id' => $review->id,
+                'user_name' => $review->user->first_name ?? 'Anonymous',
+                'rating' => $review->rating,
+                'comment' => $review->comment ?? '',
+                'created_at' => $review->created_at->toDateTimeString(),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $transformedReviews,
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'total' => $reviews->total(),
+                'per_page' => $reviews->perPage(),
+                'last_page' => $reviews->lastPage(),
+            ],
+        ], 200);
+    }
+
+
+
+
+ /**
+     * Show all active FAQs with translations for the user's language_id
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function showFaqs(Request $request)
+    {
+        try {
+            // Get the authenticated user
+            $user = Auth::user();
+
+            // Determine language_id: use user's language_id if authenticated, else query or default to 1
+            $languageId = $user && $user->language_id
+                ? $user->language_id
+                : ($request->query('language_id', 1)); // Default to language_id 1 (e.g., English)
+
+            $language = Language::find($languageId);
+
+            if (!$language) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Language not found',
+                ], 404);
+            }
+
+            $faqs = Faq::where('is_active', true)
+                ->with(['translations' => function ($query) use ($language) {
+                    $query->where('language_id', $language->id);
+                }])
+                ->get()
+                ->map(function ($faq) use ($language) {
+                    $translation = $faq->translations->first();
+                    return [
+                        'id' => $faq->id,
+                        'name' => $faq->name,
+                        'question' => $translation ? $translation->question : null,
+                        'answer' => $translation ? $translation->answer : null,
+                        'language_id' => $language->id,
+                        'language_code' => $language->code,
+                        'language_name' => $language->name,
+                        'is_active' => $faq->is_active,
+                        'created_at' => $faq->created_at,
+                        'updated_at' => $faq->updated_at,
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $faqs,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve FAQs: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Show a single FAQ with translation for the user's language_id
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function showFaq(Request $request, $id)
+    {
+        try {
+            // Get the authenticated user
+            $user = Auth::user();
+
+            // Determine language_id: use user's language_id if authenticated, else query or default to 1
+            $languageId = $user && $user->language_id
+                ? $user->language_id
+                : ($request->query('language_id', 1));
+
+            $language = Language::find($languageId);
+
+            if (!$language) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Language not found',
+                ], 404);
+            }
+
+            $faq = Faq::where('is_active', true)
+                ->with(['translations' => function ($query) use ($language) {
+                    $query->where('language_id', $language->id);
+                }])
+                ->find($id);
+
+            if (!$faq) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'FAQ not found',
+                ], 404);
+            }
+
+            $translation = $faq->translations->first();
+            $data = [
+                'id' => $faq->id,
+                'name' => $faq->name,
+                'question' => $translation ? $translation->question : null,
+                'answer' => $translation ? $translation->answer : null,
+                'language_id' => $language->id,
+                'language_code' => $language->code,
+                'language_name' => $language->name,
+                'is_active' => $faq->is_active,
+                'created_at' => $faq->created_at,
+                'updated_at' => $faq->updated_at,
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $data,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve FAQ: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Search FAQs by question or answer in the user's language_id
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchFaqs(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'query' => 'required|string|min:1',
+                'language_id' => 'sometimes|integer|exists:languages,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $validator->errors(),
+                ], 422);
+            }
+
+            // Get the authenticated user
+            $user = Auth::user();
+
+            // Determine language_id: use user's language_id if authenticated, else query or default to 1
+            $languageId = $user && $user->language_id
+                ? $user->language_id
+                : ($request->query('language_id', 1));
+
+            $language = Language::find($languageId);
+
+            if (!$language) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Language not found',
+                ], 404);
+            }
+
+            $queryString = $request->query('query');
+
+            $faqs = Faq::where('is_active', true)
+                ->with(['translations' => function ($query) use ($language, $queryString) {
+                    $query->where('language_id', $language->id)
+                          ->where(function ($q) use ($queryString) {
+                              $q->where('question', 'like', '%' . $queryString . '%')
+                                ->orWhere('answer', 'like', '%' . $queryString . '%');
+                          });
+                }])
+                ->get()
+                ->filter(function ($faq) {
+                    return $faq->translations->isNotEmpty();
+                })
+                ->map(function ($faq) use ($language) {
+                    $translation = $faq->translations->first();
+                    return [
+                        'id' => $faq->id,
+                        'name' => $faq->name,
+                        'question' => $translation ? $translation->question : null,
+                        'answer' => $translation ? $translation->answer : null,
+                        'language_id' => $language->id,
+                        'language_code' => $language->code,
+                        'language_name' => $language->name,
+                        'is_active' => $faq->is_active,
+                        'created_at' => $faq->created_at,
+                        'updated_at' => $faq->updated_at,
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $faqs->values(),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to search FAQs: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
 

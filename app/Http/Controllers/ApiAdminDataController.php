@@ -944,6 +944,7 @@ class ApiAdminDataController extends Controller
                  ProductPrice::create([
                     'product_id' => $product->id,
                     'price' => $price['price'],
+                    'discount_price' => $price['discount_price'] ?? 0,
                     'currency_id' => $price['currency_id'],
                     'is_active' => $price['is_active'] ?? 0,
                     //'office_ids' => json_encode($price['office_ids']),
@@ -1040,6 +1041,7 @@ class ApiAdminDataController extends Controller
                     ],
                     [
                         'price' => $price['price'],
+                        'discount_price' => $price['discount_price'] ?? 0,
                         'is_active' => $price['is_active'] ?? 0,
                        // 'office_ids' => json_encode($price['office_ids']),
                     ]
@@ -1086,9 +1088,10 @@ class ApiAdminDataController extends Controller
         return response()->json($user);
     }
 
-    /**
+    /**ب
      * Add a new user.
      */
+
     public function AddUser(Request $request)
     {
         // Validate the incoming request data.

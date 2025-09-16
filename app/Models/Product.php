@@ -74,7 +74,31 @@ class Product extends Model
     }
     public function activePrice()
     {
-        return $this->hasOne(ProductPrice::class)->where('is_active', 1);
+        return $this->hasOne(ProductPrice::class)->where('is_active', 1)->latest('id');
+    }
+
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+    public function isFavoritedBy($userId)
+    {
+        return $this->favorites()->where('user_id', $userId)->exists();
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function isLikedBy($userId)
+    {
+        return $this->likes()->where('user_id', $userId)->exists();
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
     }
 
 }

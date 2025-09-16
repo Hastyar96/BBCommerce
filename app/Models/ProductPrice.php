@@ -9,6 +9,7 @@ class ProductPrice extends Model
     protected $fillable = [
         'product_id',
         'price',
+        'discount_price',
         'currency_id',
          'is_active', // 1 for active, 0 for inactive
        // 'office_ids', // JSON array of office IDs

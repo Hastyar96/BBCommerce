@@ -41,13 +41,13 @@ class ApiAuthController extends Controller
             }
 
             // 4. Generate OTP
-            $otp = random_int(100000, 999999);
+            $otp = 123456;//random_int(100000, 999999);
 
             // 5. Create user
             $user = $this->createUser($request, $otp, $phone);
 
             //6. Send OTP via OTPIQ WhatsApp API
-            $response = $this->sendOtp($phone, $otp);
+/*$response = $this->sendOtp($phone, $otp);
             if (!$response->successful()) {
                 $user->delete(); // rollback
                 return response()->json([
@@ -55,6 +55,7 @@ class ApiAuthController extends Controller
                     'error' => $response->json(),
                 ], 500);
             }
+                */
 
             // 7. Generate token
             $token = $user->createToken('API Token')->plainTextToken;
@@ -202,12 +203,12 @@ class ApiAuthController extends Controller
         }
 
         // Generate and send OTP
-        $otp =random_int(100000, 999999);
+        $otp =654321;//random_int(100000, 999999);
         Auth::user()->update([
             'verify_code'    => Hash::make($otp),
             'otp_expires_at' => now()->addMinutes(10),
         ]);
-
+/*
         $response = $this->sendOtp($fullPhone, $otp);
 
         if (!$response->successful()) {
@@ -218,6 +219,7 @@ class ApiAuthController extends Controller
                 ], 500);
             }
         }
+        */
 
         // Increment resend count
         cache()->increment($key);
@@ -248,6 +250,7 @@ class ApiAuthController extends Controller
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
+        $user->update(['fcm_token' => $request->fcm_token]);
 
         $token = $user->createToken('API Token')->plainTextToken;
         $language = Language::find($user->language_id);
